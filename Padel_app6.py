@@ -13,10 +13,10 @@ st.sidebar.header("🎛 Nastavení modelu")
 with st.sidebar.expander("🏗 Investice a financování", expanded=True):
     n_kurtu = st.number_input("Počet kurtů", min_value=1, value=3, step=1)
     investice_kurt = st.number_input("Cena za 1 kurt (Kč)", min_value=0, value=1000000, step=10000)
-    vlastni_kapital_proc = st.number_input("% vlastního kapitálu", min_value=0, max_value=100, value=80) / 100
+    vlastni_kapital_proc = st.number_input("% vlastního kapitálu", min_value=0, max_value=100, value=100) / 100
     urok_uveru_pa = st.number_input("Úroková sazba úvěru (% p.a.)", value=6.0, step=0.1) / 100
     doba_uveru_let = st.number_input("Doba splácení úvěru (roky)", min_value=1, value=5)
-    diskontni_mira = st.number_input("Roční diskontní míra (%)", min_value=0.0, value=8.0, step=0.5) / 100
+    diskontni_mira = st.number_input("Roční diskontní míra (%)", min_value=0.0, value=5.0, step=0.5) / 100
 
 with st.sidebar.expander("💰 Cenotvorba (Celková kapacita)", expanded=True):
     # Pevně ukotvená otevírací doba 14h na každý kurt
@@ -33,23 +33,23 @@ with st.sidebar.expander("💰 Cenotvorba (Celková kapacita)", expanded=True):
         max_value=kapacita_arealu_celkem,
         value=min(12, kapacita_arealu_celkem)
     )
-    cena_spicka = st.number_input("Cena ve špičce (Kč/h)", value=600)
-    obsazenost_spicka = st.number_input("% obsazenost ve špičce", value=90) / 100
+    cena_spicka = st.number_input("Cena ve špičce (Kč/h)", value=300)
+    obsazenost_spicka = st.number_input("% obsazenost ve špičce", value=80) / 100
 
     st.subheader("Mimo špičku (Off-Peak)")
     # Automatický dopočet zbytku kapacity
     hodin_mimo_total = kapacita_arealu_celkem - hodin_spicka_total
     st.write(f"Mimo špičku zbývá: **{hodin_mimo_total} hodin/den**")
 
-    cena_mimo = st.number_input("Cena mimo špičku (Kč/h)", value=350)
-    obsazenost_mimo = st.number_input("% obsazenost mimo špičku", value=40) / 100
+    cena_mimo = st.number_input("Cena mimo špičku (Kč/h)", value=200)
+    obsazenost_mimo = st.number_input("% obsazenost mimo špičku", value=30) / 100
 
 with st.sidebar.expander("📈 Dynamický pricing a inflace", expanded=True):
     narust_ceny_rok = st.number_input("Roční navýšení ceny nájmu (%)", value=3.0) / 100
     narust_opex_rok = st.number_input("Roční nárůst nákladů/inflace (%)", value=2.0) / 100
 
 with st.sidebar.expander("⏳ Horizont a provoz", expanded=True):
-    opex_mesic_start = st.number_input("Počáteční fixní měsíční náklady (Kč)", value=30000)
+    opex_mesic_start = st.number_input("Počáteční fixní měsíční náklady (Kč)", value=5000)
     sezona = st.number_input("Délka sezóny (měsíce)", min_value=1, max_value=12, value=7)
     horizont_let = st.number_input("Doba sledování (roky)", min_value=1, max_value=30, value=10)
 
