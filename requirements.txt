@@ -2,4 +2,4 @@ streamlit
 numpy
 numpy_financial
 plotly.graph_objects
-matplotlib
+
