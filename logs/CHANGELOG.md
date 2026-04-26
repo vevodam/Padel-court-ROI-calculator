@@ -3,6 +3,14 @@
 Tento soubor je automaticky aktualizován po každém commitu.
 
 
+## 2026-04-26 18:40  (`2577fab`)
+**Popis:** feat: oprava osy X grafu a výpočtu cash flow dle začátku sezóny
+
+**Změněné soubory:**
+  - Padel model script/Padel_app8.py
+
+---
+
 ## 2026-04-14 19:46  (`59fbfcb`)
 **Popis:** feat: kompletní migrace projektu na GitHub
 

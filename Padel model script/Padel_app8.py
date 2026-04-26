@@ -20,6 +20,15 @@ def datum_na_doy(d):
     return sum(mesice[:d.month - 1]) + den
 
 
+def pridat_mesice(dt, pocet):
+    """Přidá 'pocet' měsíců k datu bez závislosti na externích knihovnách."""
+    mesic = dt.month - 1 + pocet
+    rok = dt.year + mesic // 12
+    mesic = mesic % 12 + 1
+    den = min(dt.day, [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mesic - 1])
+    return datetime.date(rok, mesic, den)
+
+
 def mesicni_faktor_sezony(mesic, start_doy, konec_doy):
     """Vrátí podíl dní měsíce (0.0–1.0) patřících do sezóny.
     Podporuje sezónu přes přelom roku (např. říjen–březen)."""
@@ -134,9 +143,10 @@ cash_flows_mesicni = [-vlastni_kapital_czk]
 akumulovany_cf = [-vlastni_kapital_czk]
 
 for m in range(1, mesicu + 1):
-    aktualni_rok = (m - 1) // 12
-    # Oprava logiky pro určení měsíce v roce (1 až 12)
-    mesic_v_roce = ((m - 1) % 12) + 1
+    # Posun o startovní měsíc sezóny — m=1 odpovídá sezona_start.month
+    offset = sezona_start.month - 1 + (m - 1)
+    aktualni_rok = offset // 12
+    mesic_v_roce = offset % 12 + 1
 
     # Eskalace cen a nákladů
     cena_spicka_akt = cena_spicka * (1 + narust_ceny_rok) ** aktualni_rok
@@ -165,6 +175,13 @@ for m in range(1, mesicu + 1):
 mesicni_diskont = (1 + diskontni_mira) ** (1 / 12) - 1
 npv_vysledek = npf.npv(mesicni_diskont, cash_flows_mesicni)
 
+# Výpočet IRR
+try:
+    irr_mesicni = npf.irr(cash_flows_mesicni)
+    irr_rocni = (1 + irr_mesicni) ** 12 - 1 if (irr_mesicni is not None and not np.isnan(irr_mesicni)) else None
+except Exception:
+    irr_rocni = None
+
 # Výpočet Bodu zvratu
 idx_zvratu = np.where(np.array(akumulovany_cf) >= 0)[0]
 mesic_zvratu = idx_zvratu[0] if len(idx_zvratu) > 0 else None
@@ -172,15 +189,22 @@ mesic_zvratu = idx_zvratu[0] if len(idx_zvratu) > 0 else None
 # --- ZOBRAZENÍ VÝSLEDKŮ ---
 st.header("📊 Výsledky pokročilé analýzy")
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Vlastní investice", f"{format_czk(vlastni_kapital_czk)} Kč")
-c2.metric("Měsíční splátka úvěru", f"{format_czk(mesicni_splatka)} Kč" if vyska_uveru > 0 else "0 Kč")
-c3.metric(
+r1c1, r1c2, r1c3 = st.columns(3)
+r1c1.metric("Vlastní investice", f"{format_czk(vlastni_kapital_czk)} Kč")
+r1c2.metric("Měsíční splátka úvěru", f"{format_czk(mesicni_splatka)} Kč" if vyska_uveru > 0 else "0 Kč")
+r1c3.metric(
     "NPV vlastního kapitálu",
     f"{format_czk(npv_vysledek)} Kč",
     help="Čistá současná hodnota počítaná z peněžních toků po odečtení splátek úvěru. Ukazuje hodnotu přidanou nad rámec požadovaného výnosu."
 )
-c4.metric(
+
+r2c1, r2c2, _ = st.columns(3)
+r2c1.metric(
+    "IRR (roční)",
+    f"{irr_rocni * 100:.1f} %" if irr_rocni is not None else "N/A",
+    help="Vnitřní výnosové procento na roční bázi. Porovnejte s požadovaným výnosem vlastního kapitálu (diskontní mírou)."
+)
+r2c2.metric(
     "Doba návratnosti",
     f"{mesic_zvratu} m. ({round(mesic_zvratu / 12, 1)} let)" if mesic_zvratu else "Nedohledno",
     help="Bod, kdy kumulativní cash flow protne nulu."
@@ -188,13 +212,17 @@ c4.metric(
 
 # --- INTERAKTIVNÍ GRAF (PLOTLY) ---
 # --- VYLEPŠENÝ INTERAKTIVNÍ GRAF (PLOTLY) ---
+
+# Osa X: skutečná data začínající od začátku sezóny
+x_dates = [pridat_mesice(sezona_start, i) for i in range(mesicu + 1)]
+
 fig = go.Figure()
 
 # 1. Sloupcový graf pro MĚSÍČNÍ Cash Flow (na pozadí)
 # Rozdělíme barvy: zelená pro plusové měsíce, červená pro minusové (investice a ztráty)
 barvy_mesicni = ['#2ca02c' if val >= 0 else '#d62728' for val in cash_flows_mesicni]
 fig.add_trace(go.Bar(
-    x=list(range(mesicu + 1)),
+    x=x_dates,
     y=cash_flows_mesicni,
     name='Měsíční Cash Flow',
     marker_color=barvy_mesicni,
@@ -204,7 +232,7 @@ fig.add_trace(go.Bar(
 
 # 2. Hlavní křivka KUMULATIVNÍHO Cash Flow
 fig.add_trace(go.Scatter(
-    x=list(range(mesicu + 1)),
+    x=x_dates,
     y=akumulovany_cf,
     mode='lines',
     name='Kumulativní Zůstatek',
@@ -215,7 +243,7 @@ fig.add_trace(go.Scatter(
 # 3. Zvýraznění bodu zvratu s textovou anotací
 if mesic_zvratu:
     fig.add_trace(go.Scatter(
-        x=[mesic_zvratu],
+        x=[x_dates[mesic_zvratu]],
         y=[0],
         mode='markers+text',
         name='Bod zvratu',
@@ -228,7 +256,7 @@ if mesic_zvratu:
 # 4. Formátování a úprava layoutu
 fig.update_layout(
     title=dict(text="Finanční vývoj projektu v čase", font=dict(size=20)),
-    xaxis=dict(title="Měsíce provozu", showgrid=False), # Skrytí vertikální mřížky
+    xaxis=dict(title="Kalendářní měsíc", showgrid=False, tickformat="%b %Y"),
     yaxis=dict(title="Hotovost (CZK)", tickformat=",d", showgrid=True, gridcolor='rgba(128, 128, 128, 0.2)'),
     hovermode="x unified",
     showlegend=True,
